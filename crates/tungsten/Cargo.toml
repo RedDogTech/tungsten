@@ -1,0 +1,17 @@
+[package]
+name = "tungsten"
+version = "0.1.0"
+edition = "2021"
+
+
+[[bin]]
+name = "tungsten"
+path = "src/main.rs"
+
+[dependencies]
+log.workspace = true
+gpui.workspace = true
+settings.workspace = true
+theme.workspace = true
+workspace.workspace = true
+env_logger = "0.9"

@@ -1,0 +1,21 @@
+[workspace]
+members = [
+    "crates/settings",
+    "crates/theme",
+    "crates/tungsten",
+    "crates/ui",
+    "crates/workspace",
+]
+
+default-members = ["crates/tungsten"]
+resolver = "2"
+
+[workspace.dependencies]
+log = { version = "0.4.16" }
+smallvec = { version = "1.6", features = ["union"] }
+
+gpui = { git = "https://github.com/zed-industries/zed" }
+settings = { path = "crates/settings" }
+workspace = { path = "crates/workspace" }
+theme = { path = "crates/theme" }
+ui = { path = "crates/ui" }
