@@ -2,7 +2,7 @@ mod styles;
 
 use std::sync::Arc;
 
-use gpui::AppContext;
+use gpui::{AppContext, WindowBackgroundAppearance};
 pub use styles::*;
 
 pub trait ActiveTheme {
@@ -25,6 +25,7 @@ impl Default for Theme {
         Self {
             styles: ThemeStyles {
                 colors: ThemeColors::default(),
+                window_background_appearance: WindowBackgroundAppearance::Opaque,
             },
         }
     }
@@ -35,5 +36,10 @@ impl Theme {
     #[inline(always)]
     pub fn colors(&self) -> &ThemeColors {
         &self.styles.colors
+    }
+
+    #[inline(always)]
+    pub fn window_background_appearance(&self) -> WindowBackgroundAppearance {
+        self.styles.window_background_appearance
     }
 }

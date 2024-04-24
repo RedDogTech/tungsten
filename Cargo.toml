@@ -13,6 +13,7 @@ resolver = "2"
 [workspace.dependencies]
 log = { version = "0.4.16" }
 smallvec = { version = "1.6", features = ["union"] }
+uuid = { version = "1.1.2", features = ["v4", "v5"] }
 
 gpui = { git = "https://github.com/zed-industries/zed" }
 settings = { path = "crates/settings" }

@@ -3944,6 +3944,7 @@ dependencies = [
  "log",
  "settings",
  "theme",
+ "uuid",
  "workspace",
 ]
 
@@ -4623,6 +4624,7 @@ dependencies = [
  "gpui",
  "theme",
  "ui",
+ "uuid",
 ]
 
 [[package]]

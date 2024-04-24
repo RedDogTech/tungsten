@@ -1,24 +1,12 @@
+mod tungsten;
+
+use std::sync::Arc;
+
 use gpui::*;
-use log::LevelFilter;
 use settings::SettingsStore;
 
-struct HelloWorld {
-    text: SharedString,
-}
-
-impl Render for HelloWorld {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
-        div()
-            .flex()
-            .bg(rgb(0x2e7d32))
-            .size_full()
-            .justify_center()
-            .items_center()
-            .text_xl()
-            .text_color(rgb(0xffffff))
-            .child(format!("Hello, {}!", &self.text))
-    }
-}
+use tungsten::{app_menus, build_window_options};
+use workspace::AppState;
 
 fn main() {
     env_logger::init();
@@ -32,7 +20,14 @@ fn main() {
 
         cx.set_global(store);
 
-        let _ = workspace::new(cx);
+        let app_state = Arc::new(AppState {
+            build_window_options,
+        });
+        AppState::set_global(Arc::downgrade(&app_state), cx);
+
+        let _ = workspace::new(app_state, cx);
+
+        cx.set_menus(app_menus());
 
         cx.activate(true);
     });

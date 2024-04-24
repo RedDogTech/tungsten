@@ -12,3 +12,4 @@ doctest = false
 gpui.workspace = true
 theme.workspace = true
 ui.workspace = true
+uuid.workspace = true
