@@ -15,5 +15,11 @@ settings.workspace = true
 theme.workspace = true
 workspace.workspace = true
 uuid.workspace = true
+assets.workspace = true
+
+#App components
+dmx_output.workspace = true
+patch_ui.workspace = true
+cue_ui.workspace = true
 
 env_logger = "0.9"

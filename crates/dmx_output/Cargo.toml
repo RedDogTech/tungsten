@@ -1,16 +1,15 @@
 [package]
-name = "workspace"
+name = "dmx_output"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-path = "src/workspace.rs"
-doctest = false
 
 [dependencies]
 gpui.workspace = true
-theme.workspace = true
-ui.workspace = true
-uuid.workspace = true
+anyhow.workspace = true
+
+# Settings
+settings.workspace = true
 serde.workspace = true
+schemars.workspace = true

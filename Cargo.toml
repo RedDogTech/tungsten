@@ -1,5 +1,9 @@
 [workspace]
 members = [
+    "crates/dmx_output",
+    "crates/assets",
+    "crates/cue_ui",
+    "crates/patch_ui",
     "crates/settings",
     "crates/theme",
     "crates/tungsten",
@@ -11,12 +15,31 @@ default-members = ["crates/tungsten"]
 resolver = "2"
 
 [workspace.dependencies]
+anyhow = "1.0.57"
 log = { version = "0.4.16" }
 smallvec = { version = "1.6", features = ["union"] }
 uuid = { version = "1.1.2", features = ["v4", "v5"] }
+rust-embed = { version = "8.0", features = ["include-exclude"] }
+lazy_static = "1.4.0"
 
+# Handle the settings
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_derive = { version = "1.0", features = ["deserialize_in_place"] }
+serde_json = { version = "1.0", features = ["preserve_order", "raw_value"] }
+serde_json_lenient = { version = "0.1", features = [
+    "preserve_order",
+    "raw_value",
+] }
+schemars = "0.8"
+
+
+dmx_output = { path = "crates/dmx_output" }
+gpui_macros = { git = "https://github.com/zed-industries/zed" }
 gpui = { git = "https://github.com/zed-industries/zed" }
 settings = { path = "crates/settings" }
 workspace = { path = "crates/workspace" }
 theme = { path = "crates/theme" }
 ui = { path = "crates/ui" }
+patch_ui = { path = "crates/patch_ui" }
+cue_ui = { path = "crates/cue_ui" }
+assets = { path = "crates/assets" }

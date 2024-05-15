@@ -1,0 +1,6 @@
+{
+    "dmx_output": {
+        "enable_artnet": true,
+        "enable_sacn": true
+    }
+}
