@@ -7,8 +7,9 @@ use item::ItemHandle;
 use pane::Pane;
 use pane_group::PaneGroup;
 use serde::Deserialize;
+use settings::Settings;
 use std::sync::{Arc, Weak};
-use theme::ActiveTheme;
+use theme::{ActiveTheme, ThemeSettings};
 use ui::{h_flex, Div, TitleBar};
 use uuid::Uuid;
 
@@ -17,6 +18,7 @@ pub mod pane;
 pub mod pane_group;
 mod status_bar;
 use status_bar::StatusBar;
+pub use status_bar::StatusItemView;
 
 impl_actions!(workspace, [ActivatePane]);
 
@@ -52,21 +54,21 @@ pub struct Workspace {
     active_pane: View<Pane>,
     panes: Vec<View<Pane>>,
     center: PaneGroup,
-    titlebar_item: Option<AnyView>,
     app_state: Arc<AppState>,
     status_bar: View<StatusBar>,
 }
 
 pub fn new(app_state: Arc<AppState>, cx: &mut AppContext) {
     cx.spawn(|cx| async move {
-        let mut options = cx
+        let options = cx
             .update(|cx| (app_state.build_window_options)(None, cx))
             .unwrap();
 
         cx.open_window(options, {
             let app_state = app_state.clone();
             move |cx| cx.new_view(|cx| Workspace::new(app_state, cx))
-        });
+        })
+        .unwrap();
     })
     .detach();
 }
@@ -82,7 +84,7 @@ impl Workspace {
         let center_pane = cx.new_view(|cx| Pane::new(weak_handle.clone(), cx));
 
         let status_bar = cx.new_view(|cx| {
-            let mut status_bar = StatusBar::new(&center_pane.clone(), cx);
+            let status_bar = StatusBar::new(&center_pane.clone(), cx);
             status_bar
         });
 
@@ -92,7 +94,6 @@ impl Workspace {
             active_pane: center_pane.clone(),
             panes: vec![center_pane.clone()],
             center: PaneGroup::new(center_pane.clone()),
-            titlebar_item: None,
             app_state,
             status_bar,
         }
@@ -100,6 +101,10 @@ impl Workspace {
 
     pub fn active_pane(&self) -> &View<Pane> {
         &self.active_pane
+    }
+
+    pub fn status_bar(&self) -> &View<StatusBar> {
+        &self.status_bar
     }
 
     pub fn activate_item(&mut self, item: &dyn ItemHandle, cx: &mut WindowContext) -> bool {
@@ -143,10 +148,6 @@ impl Workspace {
         cx.set_window_title(&title);
     }
 
-    fn titlebar_item(&mut self) -> impl IntoElement {
-        TitleBar::new("collab-titlebar")
-    }
-
     pub fn weak_handle(&self) -> WeakView<Self> {
         self.weak_self.clone()
     }
@@ -188,12 +189,23 @@ impl Render for Workspace {
         let mut context = KeyContext::new_with_defaults();
         context.add("Workspace");
 
+        let (ui_font, ui_font_size) = {
+            let theme_settings = ThemeSettings::get_global(cx);
+            (
+                theme_settings.ui_font.family.clone(),
+                theme_settings.ui_font_size,
+            )
+        };
+
+        cx.set_rem_size(ui_font_size);
+
         self.actions(div(), cx)
             .key_context(context)
             .relative()
             .size_full()
             .flex()
             .flex_col()
+            .font_family(ui_font)
             .gap_0()
             .justify_start()
             .items_start()

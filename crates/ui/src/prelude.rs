@@ -1,3 +1,6 @@
+pub use crate::clickable::*;
+pub use crate::disableable::*;
+pub use crate::fixed::*;
 pub use crate::selectable::*;
 pub use crate::visible_on_hover::*;
 pub use crate::{h_flex, v_flex};

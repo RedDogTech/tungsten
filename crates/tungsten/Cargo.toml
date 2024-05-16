@@ -16,6 +16,7 @@ theme.workspace = true
 workspace.workspace = true
 uuid.workspace = true
 assets.workspace = true
+parking_lot.workspace = true
 
 #App components
 dmx_output.workspace = true

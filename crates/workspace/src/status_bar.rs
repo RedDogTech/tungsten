@@ -5,6 +5,14 @@ use gpui::{AnyView, Render, View};
 use theme::ActiveTheme;
 use ui::{h_flex, IntoElement, ParentElement, Spacing, Styled, ViewContext, WindowContext};
 
+pub trait StatusItemView: Render {
+    fn set_active_pane_item(
+        &mut self,
+        active_pane_item: Option<&dyn crate::ItemHandle>,
+        cx: &mut ViewContext<Self>,
+    );
+}
+
 trait StatusItemViewHandle: Send {
     fn to_any(&self) -> AnyView;
     fn set_active_pane_item(
@@ -46,6 +54,28 @@ impl StatusBar {
         this
     }
 
+    pub fn add_left_item<T>(&mut self, item: View<T>, cx: &mut ViewContext<Self>)
+    where
+        T: 'static + StatusItemView,
+    {
+        let active_pane_item = self.active_pane.read(cx).active_item();
+        item.set_active_pane_item(active_pane_item.as_deref(), cx);
+
+        self.left_items.push(Box::new(item));
+        cx.notify();
+    }
+
+    pub fn add_right_item<T>(&mut self, item: View<T>, cx: &mut ViewContext<Self>)
+    where
+        T: 'static + StatusItemView,
+    {
+        let active_pane_item = self.active_pane.read(cx).active_item();
+        item.set_active_pane_item(active_pane_item.as_deref(), cx);
+
+        self.right_items.push(Box::new(item));
+        cx.notify();
+    }
+
     fn render_left_tools(&self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         h_flex()
             .gap(Spacing::Large.rems(cx))
@@ -57,5 +87,31 @@ impl StatusBar {
         h_flex()
             .gap(Spacing::Large.rems(cx))
             .children(self.right_items.iter().rev().map(|item| item.to_any()))
+    }
+}
+
+impl<T: StatusItemView> StatusItemViewHandle for View<T> {
+    fn to_any(&self) -> AnyView {
+        self.clone().into()
+    }
+
+    fn set_active_pane_item(
+        &self,
+        active_pane_item: Option<&dyn ItemHandle>,
+        cx: &mut WindowContext,
+    ) {
+        self.update(cx, |this, cx| {
+            this.set_active_pane_item(active_pane_item, cx)
+        });
+    }
+
+    fn item_type(&self) -> TypeId {
+        TypeId::of::<T>()
+    }
+}
+
+impl From<&dyn StatusItemViewHandle> for AnyView {
+    fn from(val: &dyn StatusItemViewHandle) -> Self {
+        val.to_any().clone()
     }
 }

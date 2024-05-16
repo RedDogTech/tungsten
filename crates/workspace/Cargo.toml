@@ -14,3 +14,4 @@ theme.workspace = true
 ui.workspace = true
 uuid.workspace = true
 serde.workspace = true
+settings.workspace = true

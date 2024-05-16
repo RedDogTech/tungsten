@@ -10,3 +10,8 @@ doctest = false
 
 [dependencies]
 gpui.workspace = true
+
+# Settings
+settings.workspace = true
+serde.workspace = true
+schemars.workspace = true

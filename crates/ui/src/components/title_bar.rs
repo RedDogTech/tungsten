@@ -12,8 +12,6 @@ pub struct TitleBar {
 impl TitleBar {
     #[cfg(not(target_os = "windows"))]
     pub fn height(cx: &mut WindowContext) -> Pixels {
-        use gpui::{px, Pixels, WindowContext};
-
         (1.75 * cx.rem_size()).max(px(34.))
     }
 
@@ -25,8 +23,6 @@ impl TitleBar {
 
     #[cfg(not(target_os = "windows"))]
     fn top_padding(_cx: &WindowContext) -> Pixels {
-        use gpui::{Pixels, WindowContext};
-
         px(0.)
     }
 

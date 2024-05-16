@@ -8,14 +8,22 @@ pub enum Color {
     Default,
     Muted,
     Hidden,
+    Accent,
+    Error,
+    Warning,
+    Disabled,
 }
 
 impl Color {
     pub fn color(&self, cx: &WindowContext) -> Hsla {
         match self {
-            Color::Default => cx.theme().colors().text.into(),
-            Color::Muted => cx.theme().colors().text_muted.into(),
-            Color::Hidden => cx.theme().colors().hidden.into(),
+            Color::Default => cx.theme().colors().text,
+            Color::Muted => cx.theme().colors().text_muted,
+            Color::Hidden => cx.theme().colors().hidden,
+            Color::Accent => cx.theme().colors().text_accent,
+            Color::Error => cx.theme().colors().error,
+            Color::Warning => cx.theme().colors().warning,
+            Color::Disabled => cx.theme().colors().text_disabled,
         }
     }
 }

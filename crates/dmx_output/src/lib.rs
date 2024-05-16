@@ -1,4 +1,5 @@
 mod dmx_output_settings;
+pub mod items;
 
 use dmx_output_settings::DmxOuputSettings;
 use gpui::AppContext;

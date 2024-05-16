@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use gpui::FocusableView;
 use gpui::{
     actions, point, px, AppContext, Menu, MenuItem, PromptLevel, TitlebarOptions, WindowKind,
     WindowOptions,
 };
+use gpui::{FocusableView, VisualContext};
 use theme::ActiveTheme;
 use uuid::Uuid;
 use workspace::{AppState, Workspace};
@@ -55,6 +55,12 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut AppContext) {
     cx.observe_new_views(move |workspace: &mut Workspace, cx| {
         let workspace_handle = cx.view().clone();
         let center_pane = workspace.active_pane().clone();
+
+        let dmx_activity = cx.new_view(|cx| dmx_output::items::DmxIndicator::new(workspace, cx));
+
+        workspace.status_bar().update(cx, |status_bar, cx| {
+            status_bar.add_left_item(dmx_activity, cx);
+        });
 
         workspace.register_action(about);
         workspace.focus_handle(cx).focus(cx);

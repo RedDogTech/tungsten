@@ -21,6 +21,7 @@ smallvec = { version = "1.6", features = ["union"] }
 uuid = { version = "1.1.2", features = ["v4", "v5"] }
 rust-embed = { version = "8.0", features = ["include-exclude"] }
 lazy_static = "1.4.0"
+parking_lot = "0.12.1"
 
 # Handle the settings
 serde = { version = "1.0", features = ["derive", "rc"] }

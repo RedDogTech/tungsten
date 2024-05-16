@@ -1110,6 +1110,8 @@ dependencies = [
  "schemars",
  "serde",
  "settings",
+ "ui",
+ "workspace",
 ]
 
 [[package]]
@@ -3839,6 +3841,9 @@ name = "theme"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "schemars",
+ "serde",
+ "settings",
 ]
 
 [[package]]
@@ -4056,6 +4061,7 @@ dependencies = [
  "env_logger",
  "gpui",
  "log",
+ "parking_lot",
  "patch_ui",
  "settings",
  "theme",
@@ -4791,6 +4797,7 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "serde",
+ "settings",
  "theme",
  "ui",
  "uuid",

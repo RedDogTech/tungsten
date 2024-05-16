@@ -1,4 +1,6 @@
-use gpui::{rgb, Hsla, Refineable, Rgba, WindowBackgroundAppearance};
+use gpui::{hsla, rgb, Hsla, Refineable, WindowBackgroundAppearance};
+
+use crate::{StatusColors, StatusColorsRefinement};
 
 #[derive(Refineable, Clone, Debug)]
 #[refineable(Debug)]
@@ -18,6 +20,16 @@ pub struct ThemeColors {
     pub tab_active_background: Hsla,
     pub tab_bar_background: Hsla,
     pub status_bar_background: Hsla,
+    pub element_background: Hsla,
+    pub ghost_element_background: Hsla,
+    pub border_focused: Hsla,
+    pub element_disabled: Hsla,
+    pub border_disabled: Hsla,
+    pub ghost_element_disabled: Hsla,
+    pub text_accent: Hsla,
+    pub error: Hsla,
+    pub warning: Hsla,
+    pub text_disabled: Hsla,
 }
 
 impl Default for ThemeColors {
@@ -38,6 +50,16 @@ impl Default for ThemeColors {
             tab_active_background: rgb(0x282c33).into(),
             tab_bar_background: rgb(0x2f343e).into(),
             status_bar_background: rgb(0x3b414d).into(),
+            element_background: rgb(0x2f343e).into(),
+            ghost_element_background: hsla(0.0, 0.0, 0.0, 0.0),
+            border_focused: rgb(0x293b5).into(),
+            element_disabled: rgb(0x2f343e).into(),
+            border_disabled: rgb(0x14754).into(),
+            ghost_element_disabled: rgb(0x2f343e).into(),
+            text_accent: rgb(0x74ade8).into(),
+            error: rgb(0xd07277).into(),
+            warning: rgb(0xdec184).into(),
+            text_disabled: rgb(0x555a63).into(),
         }
     }
 }
@@ -46,6 +68,8 @@ impl Default for ThemeColors {
 pub struct ThemeStyles {
     #[refineable]
     pub colors: ThemeColors,
+    #[refineable]
+    pub status: StatusColors,
 
     pub window_background_appearance: WindowBackgroundAppearance,
 }

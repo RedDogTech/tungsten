@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 gpui.workspace = true
+workspace.workspace = true
 anyhow.workspace = true
+ui.workspace = true
 
 # Settings
 settings.workspace = true
