@@ -1,7 +1,7 @@
 use gpui::{
-    div, impl_actions, Action, AnyView, AppContext, FocusHandle, FocusableView, Global,
-    InteractiveElement, IntoElement, KeyContext, ParentElement, Render, Styled, View, ViewContext,
-    VisualContext, WeakView, WindowContext, WindowOptions,
+    div, impl_actions, Action, AppContext, FocusHandle, FocusableView, Global, InteractiveElement,
+    IntoElement, KeyContext, ParentElement, Render, Styled, View, ViewContext, VisualContext,
+    WeakView, WindowContext, WindowOptions,
 };
 use item::ItemHandle;
 use pane::Pane;
@@ -10,7 +10,10 @@ use serde::Deserialize;
 use settings::Settings;
 use std::sync::{atomic::AtomicUsize, Arc, Weak};
 use theme::{ActiveTheme, ThemeSettings};
-use ui::{h_flex, relative, Button, ButtonCommon, ButtonStyle, Color, Div, LabelSize, TitleBar};
+use ui::{
+    h_flex, prelude::*, Button, ButtonCommon, ButtonStyle, Color, Div, FluentBuilder, LabelSize,
+    TitleBar,
+};
 use uuid::Uuid;
 
 pub mod item;
@@ -196,21 +199,29 @@ impl Workspace {
     }
 
     fn title_bar(&self) -> impl IntoElement {
-        TitleBar::new("titlebar").child(
-            h_flex()
-                .gap_1()
-                .child(
-                    Button::new("name_trigger", "Tungsten")
-                        .style(ButtonStyle::Subtle)
-                        .label_size(LabelSize::Small),
-                )
-                .child(
-                    Button::new("project_trigger", "project name!")
-                        .color(Color::Muted)
-                        .style(ButtonStyle::Subtle)
-                        .label_size(LabelSize::Small),
-                ),
-        )
+        TitleBar::new("titlebar")
+            .when(cfg!(not(windows)), |this| {
+                this.on_click(|event, cx| {
+                    if event.up.click_count == 2 {
+                        cx.zoom_window();
+                    }
+                })
+            })
+            .child(
+                h_flex()
+                    .gap_1()
+                    .child(
+                        Button::new("name_trigger", "Tungsten")
+                            .style(ButtonStyle::Subtle)
+                            .label_size(LabelSize::Small),
+                    )
+                    .child(
+                        Button::new("project_trigger", "project name!")
+                            .color(Color::Muted)
+                            .style(ButtonStyle::Subtle)
+                            .label_size(LabelSize::Small),
+                    ),
+            )
     }
 }
 
@@ -233,16 +244,6 @@ impl Render for Workspace {
                 theme_settings.ui_font.family.clone(),
                 theme_settings.ui_font_size,
             )
-        };
-
-        let render_padding = |size| {
-            (size > 0.0).then(|| {
-                div()
-                    .h_full()
-                    .w(relative(size))
-                    .bg(cx.theme().colors().inner_background)
-                    .border_color(cx.theme().colors().pane_group_border)
-            })
         };
 
         cx.set_rem_size(ui_font_size);
