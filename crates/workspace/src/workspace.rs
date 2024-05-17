@@ -8,9 +8,9 @@ use pane::Pane;
 use pane_group::PaneGroup;
 use serde::Deserialize;
 use settings::Settings;
-use std::sync::{Arc, Weak};
+use std::sync::{atomic::AtomicUsize, Arc, Weak};
 use theme::{ActiveTheme, ThemeSettings};
-use ui::{h_flex, Div, TitleBar};
+use ui::{h_flex, relative, Button, ButtonCommon, ButtonStyle, Color, Div, LabelSize, TitleBar};
 use uuid::Uuid;
 
 pub mod item;
@@ -74,6 +74,9 @@ pub fn new(app_state: Arc<AppState>, cx: &mut AppContext) {
 }
 
 impl Workspace {
+    const DEFAULT_PADDING: f32 = 0.2;
+    const MAX_PADDING: f32 = 0.4;
+
     pub fn new(app_state: Arc<AppState>, cx: &mut ViewContext<Self>) -> Self {
         let weak_handle = cx.view().downgrade();
 
@@ -81,7 +84,17 @@ impl Workspace {
             this.update_window_title(cx);
         });
 
-        let center_pane = cx.new_view(|cx| Pane::new(weak_handle.clone(), cx));
+        cx.on_focus_lost(|this, cx| {
+            let focus_handle = this.focus_handle(cx);
+            cx.focus(&focus_handle);
+        })
+        .detach();
+
+        let history_timestamp = Arc::new(AtomicUsize::new(0));
+
+        let center_pane = cx.new_view(|cx| Pane::new(weak_handle.clone(), history_timestamp, cx));
+
+        cx.focus_view(&center_pane);
 
         let status_bar = cx.new_view(|cx| {
             let status_bar = StatusBar::new(&center_pane.clone(), cx);
@@ -174,6 +187,31 @@ impl Workspace {
         }
         div
     }
+
+    fn adjust_padding(padding: Option<f32>) -> f32 {
+        padding
+            .unwrap_or(Self::DEFAULT_PADDING)
+            .min(Self::MAX_PADDING)
+            .max(0.0)
+    }
+
+    fn title_bar(&self) -> impl IntoElement {
+        TitleBar::new("titlebar").child(
+            h_flex()
+                .gap_1()
+                .child(
+                    Button::new("name_trigger", "Tungsten")
+                        .style(ButtonStyle::Subtle)
+                        .label_size(LabelSize::Small),
+                )
+                .child(
+                    Button::new("project_trigger", "project name!")
+                        .color(Color::Muted)
+                        .style(ButtonStyle::Subtle)
+                        .label_size(LabelSize::Small),
+                ),
+        )
+    }
 }
 
 impl FocusableView for Workspace {
@@ -197,6 +235,16 @@ impl Render for Workspace {
             )
         };
 
+        let render_padding = |size| {
+            (size > 0.0).then(|| {
+                div()
+                    .h_full()
+                    .w(relative(size))
+                    .bg(cx.theme().colors().inner_background)
+                    .border_color(cx.theme().colors().pane_group_border)
+            })
+        };
+
         cx.set_rem_size(ui_font_size);
 
         self.actions(div(), cx)
@@ -211,7 +259,7 @@ impl Render for Workspace {
             .items_start()
             .text_color(colors.text)
             .bg(colors.background)
-            .children([TitleBar::new("titlebar")])
+            .children([self.title_bar()])
             .child(
                 div()
                     .id("workspace")
@@ -224,16 +272,14 @@ impl Render for Workspace {
                     .border_t_1()
                     .border_b_1()
                     .border_color(colors.border)
-                    .child(
-                        div().child(div().flex().flex_col().flex_1().overflow_hidden().child(
-                            h_flex().flex_1().child(self.center.render(
-                                &self.active_pane,
-                                None,
-                                &self.app_state,
-                                cx,
-                            )),
+                    .child(div().flex().flex_col().flex_1().overflow_hidden().child(
+                        h_flex().flex_1().child(self.center.render(
+                            &self.active_pane,
+                            None,
+                            &self.app_state,
+                            cx,
                         )),
-                    ),
+                    )),
             )
             .child(self.status_bar.clone())
     }

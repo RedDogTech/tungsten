@@ -1,11 +1,14 @@
-use std::cmp;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::{cmp, mem};
 
 use gpui::*;
 use gpui::{FocusHandle, KeyContext, Render, WeakView};
 use serde::Deserialize;
 use ui::{
-    v_flex, Color, FluentBuilder, InteractiveElement, IntoElement, Label, LabelCommon, Selectable,
-    StyledExt, Tab, TabBar, TabPosition, ViewContext,
+    v_flex, ButtonCommon, ButtonSize, Clickable, Color, FluentBuilder, IconButton, IconButtonShape,
+    IconName, IconSize, InteractiveElement, IntoElement, Label, LabelCommon, Selectable, StyledExt,
+    Tab, TabBar, TabPosition, ViewContext,
 };
 
 use crate::item::TabContentParams;
@@ -22,14 +25,27 @@ pub struct Pane {
     preview_item_id: Option<EntityId>,
     active_item_index: usize,
     pub(crate) workspace: WeakView<Workspace>,
+    activation_history: Vec<ActivationHistoryEntry>,
+    next_activation_timestamp: Arc<AtomicUsize>,
+}
+
+pub struct ActivationHistoryEntry {
+    pub entity_id: EntityId,
+    pub timestamp: usize,
 }
 
 impl Pane {
-    pub fn new(workspace: WeakView<Workspace>, cx: &mut ViewContext<Self>) -> Self {
+    pub fn new(
+        workspace: WeakView<Workspace>,
+        next_timestamp: Arc<AtomicUsize>,
+        cx: &mut ViewContext<Self>,
+    ) -> Self {
         let focus_handle = cx.focus_handle();
 
         Self {
             focus_handle,
+            activation_history: Vec::new(),
+            next_activation_timestamp: next_timestamp.clone(),
             items: Vec::new(),
             active_item_index: 0,
             preview_item_id: None,
@@ -93,11 +109,137 @@ impl Pane {
         cx: &mut ViewContext<Self>,
     ) {
         if index < self.items.len() {
+            let prev_active_item_ix = mem::replace(&mut self.active_item_index, index);
             if focus_item {
                 self.focus_active_item(cx);
             }
+
+            if let Some(newly_active_item) = self.items.get(index) {
+                self.activation_history
+                    .retain(|entry| entry.entity_id != newly_active_item.item_id());
+                self.activation_history.push(ActivationHistoryEntry {
+                    entity_id: newly_active_item.item_id(),
+                    timestamp: self
+                        .next_activation_timestamp
+                        .fetch_add(1, Ordering::SeqCst),
+                });
+            }
+
             cx.notify();
         }
+    }
+
+    pub fn active_item_index(&self) -> usize {
+        self.active_item_index
+    }
+
+    pub fn close_item_by_id(
+        &mut self,
+        item_id_to_close: EntityId,
+        cx: &mut ViewContext<Self>,
+    ) -> Task<Result<()>> {
+        self.close_items(cx, move |view_id| view_id == item_id_to_close)
+    }
+
+    pub fn close_items(
+        &mut self,
+        cx: &mut ViewContext<Pane>,
+        should_close: impl Fn(EntityId) -> bool,
+    ) -> Task<Result<()>> {
+        let workspace = self.workspace.clone();
+        let mut items_to_close = Vec::new();
+
+        for item in &self.items {
+            if should_close(item.item_id()) {
+                items_to_close.push(item.boxed_clone());
+            }
+        }
+
+        cx.spawn(|pane, mut cx| async move {
+            for item in items_to_close.clone() {
+                // Find the item's current index and its set of project item models. Avoid
+                // storing these in advance, in case they have changed since this task
+                // was started.
+                let item_ix = pane.update(&mut cx, |pane, cx| (pane.index_for_item(&*item)))?;
+                let item_ix = if let Some(ix) = item_ix {
+                    ix
+                } else {
+                    continue;
+                };
+
+                // Remove the item from the pane.
+                pane.update(&mut cx, |pane, cx| {
+                    if let Some(item_ix) = pane
+                        .items
+                        .iter()
+                        .position(|i| i.item_id() == item.item_id())
+                    {
+                        pane.remove_item(item_ix, false, true, cx);
+                    }
+                })
+                .ok();
+            }
+
+            pane.update(&mut cx, |_, cx| cx.notify()).ok();
+            Ok(())
+        })
+    }
+
+    pub fn has_focus(&self, cx: &WindowContext) -> bool {
+        // We not only check whether our focus handle contains focus, but also
+        // whether the active_item might have focus, because we might have just activated an item
+        // but that hasn't rendered yet.
+        // So before the next render, we might have transferred focus
+        // to the item and `focus_handle.contains_focus` returns false because the `active_item`
+        // is not hooked up to us in the dispatch tree.
+        self.focus_handle.contains_focused(cx)
+            || self
+                .active_item()
+                .map_or(false, |item| item.focus_handle(cx).contains_focused(cx))
+    }
+
+    pub fn remove_item(
+        &mut self,
+        item_index: usize,
+        activate_pane: bool,
+        close_pane_if_empty: bool,
+        cx: &mut ViewContext<Self>,
+    ) {
+        self.activation_history
+            .retain(|entry| entry.entity_id != self.items[item_index].item_id());
+
+        if item_index == self.active_item_index {
+            let index_to_activate = self
+                .activation_history
+                .pop()
+                .and_then(|last_activated_item| {
+                    self.items.iter().enumerate().find_map(|(index, item)| {
+                        (item.item_id() == last_activated_item.entity_id).then_some(index)
+                    })
+                })
+                // We didn't have a valid activation history entry, so fallback
+                // to activating the item to the left
+                .unwrap_or_else(|| item_index.min(self.items.len()).saturating_sub(1));
+
+            let should_activate = activate_pane || self.has_focus(cx);
+            if self.items.len() == 1 && should_activate {
+                self.focus_handle.focus(cx);
+            } else {
+                self.activate_item(index_to_activate, should_activate, should_activate, cx);
+            }
+        }
+
+        self.items.remove(item_index);
+
+        // cx.emit(Event::RemoveItem {
+        //     item_id: item.item_id(),
+        // });
+
+        if item_index < self.active_item_index {
+            self.active_item_index -= 1;
+        }
+
+        cx.notify();
     }
 
     fn render_tab(
@@ -126,6 +268,8 @@ impl Pane {
             cx,
         );
 
+        let item_id = item.item_id();
+
         Tab::new(ix)
             .position(if is_first_item {
                 TabPosition::First
@@ -134,7 +278,21 @@ impl Pane {
             } else {
                 TabPosition::Middle(position_relative_to_active_item)
             })
+            .close_side(ui::TabCloseSide::End)
             .selected(is_active)
+            .on_click(
+                cx.listener(move |pane: &mut Self, _, cx| pane.activate_item(ix, true, true, cx)),
+            )
+            .end_slot(
+                IconButton::new("close tab", IconName::Close)
+                    .shape(IconButtonShape::Square)
+                    .icon_color(Color::Muted)
+                    .size(ButtonSize::None)
+                    .icon_size(IconSize::XSmall)
+                    .on_click(cx.listener(move |pane, _, cx| {
+                        pane.close_item_by_id(item_id, cx).detach_and_log_err(cx);
+                    })),
+            )
             .child(label)
     }
 
@@ -165,6 +323,7 @@ impl Render for Pane {
     fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
         let mut key_context = KeyContext::new_with_defaults();
         key_context.add("Pane");
+
         if self.active_item().is_none() {
             key_context.add("EmptyPane");
         }

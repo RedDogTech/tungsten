@@ -30,6 +30,8 @@ pub struct ThemeColors {
     pub error: Hsla,
     pub warning: Hsla,
     pub text_disabled: Hsla,
+    pub inner_background: Hsla,
+    pub pane_group_border: Hsla,
 }
 
 impl Default for ThemeColors {
@@ -60,6 +62,8 @@ impl Default for ThemeColors {
             error: rgb(0xd07277).into(),
             warning: rgb(0xdec184).into(),
             text_disabled: rgb(0x555a63).into(),
+            inner_background: rgb(0x2f343e).into(),
+            pane_group_border: hsla(225. / 360., 13. / 100., 12. / 100., 1.),
         }
     }
 }

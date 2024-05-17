@@ -1,6 +1,7 @@
 mod button;
 mod icon;
 mod indicator;
+mod keybinding;
 mod label;
 mod stack;
 mod tab;
@@ -10,6 +11,7 @@ mod title_bar;
 pub use button::*;
 pub use icon::*;
 pub use indicator::*;
+pub use keybinding::*;
 pub use label::*;
 pub use stack::*;
 pub use tab::*;

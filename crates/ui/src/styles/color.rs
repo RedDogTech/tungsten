@@ -12,6 +12,7 @@ pub enum Color {
     Error,
     Warning,
     Disabled,
+    Selected,
 }
 
 impl Color {
@@ -24,6 +25,7 @@ impl Color {
             Color::Error => cx.theme().colors().error,
             Color::Warning => cx.theme().colors().warning,
             Color::Disabled => cx.theme().colors().text_disabled,
+            Color::Selected => cx.theme().colors().text_accent,
         }
     }
 }

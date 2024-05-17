@@ -2,7 +2,11 @@ use gpui::{
     actions, AnyElement, AppContext, EventEmitter, FocusHandle, FocusableView, IntoElement, Render,
     View, ViewContext, VisualContext, WeakView,
 };
-use ui::{v_flex, Color, Label, LabelCommon, ParentElement, Styled, WindowContext};
+use theme::ActiveTheme;
+use ui::{
+    h_flex, v_flex, Color, InteractiveElement, Label, LabelCommon, ParentElement, Styled,
+    WindowContext,
+};
 use workspace::{
     item::{Item, ItemEvent, TabContentParams},
     Workspace,
@@ -51,9 +55,18 @@ impl PatchView {
 }
 
 impl Render for PatchView {
-    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
-        println!("patchview");
-        v_flex().size_full().child("test")
+    fn render(&mut self, cx: &mut ViewContext<Self>) -> impl IntoElement {
+        h_flex()
+            .size_full()
+            .bg(cx.theme().colors().tab_active_background)
+            .track_focus(&self.focus_handle)
+            .child(
+                v_flex()
+                    .w_96()
+                    .gap_4()
+                    .mx_auto()
+                    .child(h_flex().justify_center().child(Label::new("Patch List"))),
+            )
     }
 }
 
