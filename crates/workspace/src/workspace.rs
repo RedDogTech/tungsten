@@ -1,7 +1,7 @@
 use gpui::{
-    div, impl_actions, Action, AppContext, FocusHandle, FocusableView, Global, InteractiveElement,
-    IntoElement, KeyContext, ParentElement, Render, Styled, View, ViewContext, VisualContext,
-    WeakView, WindowContext, WindowOptions,
+    actions, div, impl_actions, Action, AppContext, FocusHandle, FocusableView, Global,
+    InteractiveElement, IntoElement, KeyContext, ParentElement, Render, Styled, Task, View,
+    ViewContext, VisualContext, WeakView, WindowContext, WindowHandle, WindowOptions,
 };
 use item::ItemHandle;
 use pane::Pane;
@@ -24,6 +24,7 @@ use status_bar::StatusBar;
 pub use status_bar::StatusItemView;
 
 impl_actions!(workspace, [ActivatePane]);
+actions!(workspace, [NewWindow, CloseWindow]);
 
 #[derive(Clone, Deserialize, PartialEq)]
 pub struct ActivatePane(pub usize);
@@ -61,25 +62,11 @@ pub struct Workspace {
     status_bar: View<StatusBar>,
 }
 
-pub fn new(app_state: Arc<AppState>, cx: &mut AppContext) {
-    cx.spawn(|cx| async move {
-        let options = cx
-            .update(|cx| (app_state.build_window_options)(None, cx))
-            .unwrap();
-
-        cx.open_window(options, {
-            let app_state = app_state.clone();
-            move |cx| cx.new_view(|cx| Workspace::new(app_state, cx))
-        })
-        .unwrap();
-    })
-    .detach();
+pub fn init(app_state: Arc<AppState>, cx: &mut AppContext) {
+    cx.on_action(Workspace::close_global);
 }
 
 impl Workspace {
-    const DEFAULT_PADDING: f32 = 0.2;
-    const MAX_PADDING: f32 = 0.4;
-
     pub fn new(app_state: Arc<AppState>, cx: &mut ViewContext<Self>) -> Self {
         let weak_handle = cx.view().downgrade();
 
@@ -113,6 +100,32 @@ impl Workspace {
             app_state,
             status_bar,
         }
+    }
+
+    fn new_local(
+        app_state: Arc<AppState>,
+        requesting_window: Option<WindowHandle<Workspace>>,
+        cx: &mut AppContext,
+    ) -> Task<anyhow::Result<WindowHandle<Workspace>>> {
+        cx.spawn(|mut cx| async move {
+            let window = if let Some(window) = requesting_window {
+                cx.update_window(window.into(), |_, cx| {
+                    cx.replace_root_view(|cx| Workspace::new(app_state.clone(), cx));
+                })?;
+                window
+            } else {
+                // Use the serialized workspace to construct the new window
+                let options = cx.update(|cx| (app_state.build_window_options)(None, cx))?;
+
+                cx.open_window(options, {
+                    let app_state = app_state.clone();
+                    move |cx| cx.new_view(|cx| Workspace::new(app_state, cx))
+                })?
+            };
+
+            window.update(&mut cx, |_, cx| cx.activate_window())?;
+            Ok(window)
+        })
     }
 
     pub fn active_pane(&self) -> &View<Pane> {
@@ -159,8 +172,7 @@ impl Workspace {
     }
 
     fn update_window_title(&mut self, cx: &mut WindowContext) {
-        let mut title = String::new();
-        title = "empty project".to_string();
+        let title = "empty project".to_string();
         cx.set_window_title(&title);
     }
 
@@ -191,13 +203,6 @@ impl Workspace {
         div
     }
 
-    fn adjust_padding(padding: Option<f32>) -> f32 {
-        padding
-            .unwrap_or(Self::DEFAULT_PADDING)
-            .min(Self::MAX_PADDING)
-            .max(0.0)
-    }
-
     fn title_bar(&self) -> impl IntoElement {
         TitleBar::new("titlebar")
             .when(cfg!(not(windows)), |this| {
@@ -222,6 +227,36 @@ impl Workspace {
                             .label_size(LabelSize::Small),
                     ),
             )
+    }
+
+    pub fn close_window(&mut self, _: &CloseWindow, cx: &mut ViewContext<Self>) {
+        let window = cx.window_handle();
+        cx.spawn(|_, mut cx| async move {
+            window.update(&mut cx, |_, cx| {
+                cx.remove_window();
+            })?;
+            anyhow::Ok(())
+        })
+        .detach_and_log_err(cx)
+    }
+
+    pub fn close_global(_: &CloseWindow, cx: &mut AppContext) {
+        cx.defer(|cx| {
+            cx.windows().iter().find(|window| {
+                window
+                    .update(cx, |_, window| {
+                        if window.is_window_active() {
+                            //This can only get called when the window's project connection has been lost
+                            //so we don't need to prompt the user for anything and instead just close the window
+                            window.remove_window();
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .unwrap_or(false)
+            });
+        });
     }
 }
 
@@ -284,4 +319,19 @@ impl Render for Workspace {
             )
             .child(self.status_bar.clone())
     }
+}
+
+pub fn open_new(
+    app_state: Arc<AppState>,
+    cx: &mut AppContext,
+    init: impl FnOnce(&mut Workspace, &mut ViewContext<Workspace>) + 'static + Send,
+) -> Task<()> {
+    let task = Workspace::new_local(app_state, None, cx);
+    cx.spawn(|mut cx| async move {
+        if let Some(workspace) = task.await.ok() {
+            workspace
+                .update(&mut cx, |workspace, cx| init(workspace, cx))
+                .ok();
+        }
+    })
 }

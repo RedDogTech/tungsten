@@ -5,7 +5,7 @@ use gpui::*;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use tungsten::{app_menus, build_window_options};
-use workspace::AppState;
+use workspace::{open_new, AppState};
 
 fn main() {
     env_logger::init();
@@ -15,27 +15,25 @@ fn main() {
     let app = App::new().with_assets(Assets);
 
     app.run(|cx: &mut AppContext| {
-        load_embedded_fonts(cx);
-        settings::init(cx);
-
-        theme::init(cx);
-
         let app_state = Arc::new(AppState {
             build_window_options,
         });
         AppState::set_global(Arc::downgrade(&app_state), cx);
 
-        let _ = workspace::new(app_state.clone(), cx);
-
-        dmx_output::init(cx);
-
+        settings::init(cx);
         tungsten::init(cx);
-        tungsten::initialize_workspace(app_state.clone(), cx);
+        load_embedded_fonts(cx);
+        theme::init(cx);
+        workspace::init(app_state.clone(), cx);
+        dmx_output::init(cx);
         patch_ui::init(cx);
         cue_ui::init(cx);
 
         cx.set_menus(app_menus());
+        tungsten::initialize_workspace(app_state.clone(), cx);
         cx.activate(true);
+
+        open_new(app_state, cx, |_, _| {}).detach();
     });
 }
 

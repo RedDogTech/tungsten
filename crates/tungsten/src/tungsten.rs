@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
 use gpui::{
-    actions, point, px, AppContext, Menu, MenuItem, PromptLevel, TitlebarOptions, WindowKind,
-    WindowOptions,
+    actions, point, px, AppContext, PromptLevel, TitlebarOptions, WindowKind, WindowOptions,
 };
 use gpui::{FocusableView, VisualContext};
 use theme::ActiveTheme;
 use uuid::Uuid;
-use workspace::{AppState, Workspace};
+use workspace::{open_new, AppState, NewWindow, Workspace};
 
-actions!(tungsten, [About, Quit]);
+mod app_menus;
+
+pub use app_menus::*;
+
+actions!(tungsten, [About, Minimize, Quit, Zoom, ToggleFullScreen]);
 
 pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut AppContext) -> WindowOptions {
     let display = display_uuid.and_then(|uuid| {
@@ -26,25 +29,13 @@ pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut AppContext) -> 
             traffic_light_position: Some(point(px(9.0), px(9.0))),
         }),
         window_bounds: None,
-        focus: true,
-        show: true,
+        focus: false,
+        show: false,
         kind: WindowKind::Normal,
         is_movable: true,
         display_id: display.map(|display| display.id()),
         window_background: cx.theme().window_background_appearance(),
     }
-}
-
-pub fn app_menus() -> Vec<Menu<'static>> {
-    vec![Menu {
-        name: "tungsten",
-        items: vec![
-            MenuItem::action("About Tungsten…", About),
-            MenuItem::action("Patches", patch_ui::Patch),
-            MenuItem::action("Cues", cue_ui::Cue),
-            MenuItem::action("Quit", Quit),
-        ],
-    }]
 }
 
 pub fn init(cx: &mut AppContext) {
@@ -62,7 +53,44 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut AppContext) {
             status_bar.add_left_item(dmx_activity, cx);
         });
 
-        workspace.register_action(about);
+        let handle = cx.view().downgrade();
+        cx.on_window_should_close(move |cx| {
+            handle
+                .update(cx, |workspace, cx| {
+                    // We'll handle closing asynchronously
+                    workspace.close_window(&Default::default(), cx);
+                    false
+                })
+                .unwrap_or(true)
+        });
+
+        cx.spawn(|workspace_handle, mut cx| async move {
+            workspace_handle.update(&mut cx, |_, cx| {
+                cx.focus_self();
+            })
+        })
+        .detach();
+
+        workspace
+            .register_action(about)
+            .register_action(|_, _: &Minimize, cx| {
+                cx.minimize_window();
+            })
+            .register_action(|_, _: &Zoom, cx| {
+                cx.zoom_window();
+            })
+            .register_action(|_, _: &ToggleFullScreen, cx| {
+                cx.toggle_fullscreen();
+            })
+            .register_action({
+                let app_state = Arc::downgrade(&app_state);
+                move |_, _: &NewWindow, cx| {
+                    if let Some(app_state) = app_state.upgrade() {
+                        open_new(app_state, cx, |_, _| {}).detach();
+                    }
+                }
+            });
+
         workspace.focus_handle(cx).focus(cx);
     })
     .detach();
@@ -80,6 +108,36 @@ fn about(_: &mut Workspace, _: &About, cx: &mut gpui::ViewContext<Workspace>) {
 }
 
 fn quit(_: &Quit, cx: &mut AppContext) {
-    println!("Gracefully quitting the application . . .");
-    cx.quit();
+    let should_confirm = true;
+    cx.spawn(|mut cx| async move {
+        let workspace_windows = cx.update(|cx| {
+            cx.windows()
+                .into_iter()
+                .filter_map(|window| window.downcast::<Workspace>())
+                .collect::<Vec<_>>()
+        })?;
+
+        if let (true, Some(workspace)) = (should_confirm, workspace_windows.first().copied()) {
+            let answer = workspace
+                .update(&mut cx, |_, cx| {
+                    cx.prompt(
+                        PromptLevel::Info,
+                        "Are you sure you want to quit?",
+                        None,
+                        &["Quit", "Cancel"],
+                    )
+                })
+                .ok();
+
+            if let Some(answer) = answer {
+                let answer = answer.await.ok();
+                if answer != Some(0) {
+                    return Ok(());
+                }
+            }
+        }
+        cx.update(|cx| cx.quit())?;
+        anyhow::Ok(())
+    })
+    .detach_and_log_err(cx);
 }

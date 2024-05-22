@@ -35,7 +35,7 @@ impl settings::Settings for ThemeSettings {
         let mut this = Self {
             ui_font_size: Pixels(14.),
             ui_font: Font {
-                family: "Courier".into(),
+                family: "Zed Mono".into(),
                 features: Default::default(),
                 weight: Default::default(),
                 style: Default::default(),

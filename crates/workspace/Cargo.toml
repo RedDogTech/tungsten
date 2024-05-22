@@ -15,3 +15,5 @@ ui.workspace = true
 uuid.workspace = true
 serde.workspace = true
 settings.workspace = true
+futures.workspace = true
+anyhow.workspace = true

@@ -83,7 +83,7 @@ impl Item for CueListView {
     type Event = ItemEvent;
 
     fn tab_content(&self, params: TabContentParams, _: &WindowContext) -> AnyElement {
-        Label::new("Cue List")
+        Label::new("Cues")
             .color(if params.selected {
                 Color::Default
             } else {
